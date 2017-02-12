@@ -1,6 +1,7 @@
 # Vial
 
-**TODO: Add description**
+A Set CRDT optimised for "partitioned" data - where each replica
+operates on a disjoint subset of the Set.
 
 ## Installation
 
