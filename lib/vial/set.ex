@@ -62,7 +62,7 @@ defmodule Vial.Set do
 
       [{^key, _, {^actor, clock_to_remove}}] ->
 
-        removal = {actor, clock_to_remove}
+        removal = {key, {actor, clock_to_remove}}
         :ets.delete(set.table, key)
         %{set|
           vector: Vector.increment(set.vector, set.actor),
@@ -93,5 +93,28 @@ defmodule Vial.Set do
       [{_, value, _}] ->
         {:ok, value}
     end
+  end
+
+  @doc """
+  Merges a Delta into the Set
+  """
+  @spec merge(t, Delta.t) :: t
+  def merge(set, delta) do
+    expected_clock = Vector.clock(set.vector, delta.actor)
+
+    if delta.start_clock == expected_clock do
+      do_merge(set, delta)
+    else
+      set
+    end
+  end
+
+  defp do_merge(set, delta) do
+    :ets.insert(set.table, delta.additions)
+    for {key, dot} <- delta.removals do
+      :ets.match_delete(set.table, {key, :_, dot})
+    end
+
+    %{set| vector: Vector.set(set.vector, delta.actor, delta.end_clock)}
   end
 end

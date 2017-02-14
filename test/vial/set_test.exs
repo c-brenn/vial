@@ -1,7 +1,7 @@
 defmodule Vial.SetTest do
   use ExUnit.Case, async: true
   doctest Vial.Set
-  alias Vial.Set
+  alias Vial.{Set, Delta}
 
   describe "new/1" do
     test "returns a new, usable set" do
@@ -100,6 +100,58 @@ defmodule Vial.SetTest do
         set |> Set.remove(:key)
 
       refute set.delta.removals |> Enum.empty?()
+    end
+  end
+
+  describe "merge" do
+    test "it correctly adds and removes items" do
+      replica1 =
+        Set.new(:replica1)
+        |> Set.add(:removed_element, :value)
+        |> Set.add(:remote_element, :value2)
+        |> Set.remove(:removed_element)
+
+      replica2 =
+        Set.new(:replica2)
+        |> Set.add(:local_element, :value3)
+        |> Set.merge(replica1.delta)
+
+      assert Set.member?(replica2, :local_element)
+      assert Set.member?(replica2, :remote_element)
+      refute Set.member?(replica2, :removed_element)
+    end
+
+    test "it does not merge deltas that have already been merged" do
+        replica1 =
+        Set.new(:replica1)
+        |> Set.add(:removed_element, :value)
+        |> Set.add(:remote_element, :value2)
+        |> Set.remove(:removed_element)
+
+      replica2 =
+        Set.new(:replica2)
+        |> Set.add(:local_element, :value3)
+        |> Set.merge(replica1.delta)
+
+      assert replica2 == Set.merge(replica2, replica1.delta)
+    end
+
+    test "it does not merge non-contiguous deltas" do
+      replica1 =
+        Set.new(:replica1)
+        |> Set.add(:remoted_element1, :value)
+      replica1 =
+        %{replica1| delta: Delta.new(:replica1, 1)}
+        |> Set.add(:remote_element, :value2)
+
+      replica2 =
+        Set.new(:replica2)
+        |> Set.add(:local_element, :value3)
+        |> Set.merge(replica1.delta)
+
+      assert Set.member?(replica2, :local_element)
+      refute Set.member?(replica2, :remote_element)
+      refute Set.member?(replica2, :removed_element1)
     end
   end
 end

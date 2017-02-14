@@ -1,5 +1,6 @@
 defmodule Vial.Delta do
   alias __MODULE__
+  alias Vial.{Set, Vector}
 
   @type key   :: term
   @type value :: term
@@ -7,7 +8,7 @@ defmodule Vial.Delta do
   @type actor :: term
 
   @type addition :: {key, value, {actor, clock}}
-  @type removal  :: {actor, clock}
+  @type removal  :: {key, {actor, clock}}
 
   defstruct [
     :actor,
@@ -62,6 +63,23 @@ defmodule Vial.Delta do
     %{delta|
       removals: [removal|delta.removals],
       end_clock: removal_clock
+    }
+  end
+
+  @doc """
+  Extracts all of the elements of the Set added by the given
+  actor into a Delta
+  """
+  @spec extract(Set.t) :: t
+  def extract(set) do
+    match_pattern = {:_, :_, {set.actor, :_}}
+
+    %Delta{
+      actor:       set.actor,
+      start_clock: 0,
+      end_clock:   Vector.clock(set.vector, set.actor) - 1,
+      additions:   :ets.match_object(set.table, match_pattern),
+      removals:    []
     }
   end
 end

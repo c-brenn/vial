@@ -1,6 +1,6 @@
 defmodule Vial.DeltaTest do
   use ExUnit.Case, async: true
-  alias Vial.Delta
+  alias Vial.{Delta, Set}
 
   describe "new" do
     test "it creates a valid Delta" do
@@ -26,13 +26,48 @@ defmodule Vial.DeltaTest do
 
   describe "record_removal" do
     test "it records removals" do
-      removal = {:actor, 8}
+      removal = {:key, {:actor, 8}}
       delta =
         Delta.new(:actor, 10)
         |> Delta.record_removal(12, removal)
 
       assert delta.end_clock == 12
       assert delta.removals == [removal]
+    end
+  end
+
+  describe "extract" do
+    test "it only extracts elements that have not been removed" do
+      set =
+        Set.new(:foo)
+        |> Set.add(:key, :value)
+        |> Set.add(:key1, :value)
+        |> Set.add(:removed, :value1)
+        |> Set.remove(:removed)
+
+      delta = set
+        |> Delta.extract()
+
+      keys =
+        delta.additions
+        |> Enum.map(fn {key, _, _} -> key end)
+        |> Enum.sort
+
+      assert keys == [:key, :key1]
+    end
+
+    test "it sets the clocks correctly" do
+      set =
+        Set.new(:foo)
+        |> Set.add(:key, :value)      # 0
+        |> Set.add(:key1, :value)     # 1
+        |> Set.add(:removed, :value1) # 2
+        |> Set.remove(:removed)       # 3
+
+      delta = set |> Delta.extract()
+
+      assert delta.start_clock == 0
+      assert delta.end_clock == 3
     end
   end
 end
