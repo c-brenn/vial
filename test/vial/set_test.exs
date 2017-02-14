@@ -58,6 +58,21 @@ defmodule Vial.SetTest do
     end
   end
 
+  describe "lookup" do
+    test "it returns the value for a given key" do
+      set =
+        Set.new(:foo)
+        |> Set.add(:key, :value)
+
+      assert Set.lookup(set, :key) == {:ok, :value}
+    end
+
+    test  "it returns an error tuple for non-members" do
+      assert Set.new(:foo) |> Set.lookup(:key) ==
+        {:error, :no_such_element}
+    end
+  end
+
   describe "remove" do
     test "it does nothing for non-existent elements" do
       set = Set.new(:foo)
