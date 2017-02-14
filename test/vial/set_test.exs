@@ -12,8 +12,10 @@ defmodule Vial.SetTest do
       table_info = :ets.info(set.table)
 
       assert table_info
-
       assert Keyword.get(table_info, :size) == 0
+
+      assert set.delta.start_clock == 0
+      assert set.delta.end_clock == 0
     end
   end
 
@@ -44,6 +46,16 @@ defmodule Vial.SetTest do
       assert set == s1 # the version vector is the same
       assert Set.lookup(set, :key) == {:ok, :value}
     end
+
+    test "it records additions in the delta" do
+      set = Set.new(:foo)
+      assert set.delta.additions |> Enum.empty?()
+      set =
+        set
+        |> Set.add(:key, :value)
+
+      refute set.delta.additions |> Enum.empty?()
+    end
   end
 
   describe "remove" do
@@ -61,6 +73,18 @@ defmodule Vial.SetTest do
         |> Set.remove(:key)
 
       refute Set.member?(set, :key)
+    end
+
+    test "it records removals in the delta" do
+      set =
+        Set.new(:foo)
+        |> Set.add(:key, :value)
+      assert set.delta.removals |> Enum.empty?()
+
+      set =
+        set |> Set.remove(:key)
+
+      refute set.delta.removals |> Enum.empty?()
     end
   end
 end

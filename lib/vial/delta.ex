@@ -44,7 +44,7 @@ defmodule Vial.Delta do
   """
   @spec record_addition(t, addition) :: t
   def record_addition(%{end_clock: e}=delta, {_,_,{_,clock}} = addition)
-    when e < clock do
+    when e <= clock do
 
     %{delta|
       additions: [addition|delta.additions],
@@ -57,7 +57,7 @@ defmodule Vial.Delta do
   """
   @spec record_removal(t, clock, removal) :: t
   def record_removal(%{end_clock: e}=delta, removal_clock, removal)
-    when e < removal_clock do
+    when e <= removal_clock do
 
     %{delta|
       removals: [removal|delta.removals],

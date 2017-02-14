@@ -1,7 +1,11 @@
 defmodule Vial.Set do
-  alias Vial.{Set, Vector}
+  alias Vial.{
+    Delta,
+    Set,
+    Vector
+  }
 
-  defstruct [:actor, :table, :vector]
+  defstruct [:actor, :table, :vector, :delta]
 
   @type actor   :: term
   @type key     :: term
@@ -9,8 +13,9 @@ defmodule Vial.Set do
 
   @opaque t :: %Set {
     actor: actor,
-    table: term,
-    vector: Vector.t
+    table:  term,
+    vector: Vector.t,
+    delta:  Delta.t
   }
 
   @doc """
@@ -19,9 +24,10 @@ defmodule Vial.Set do
   @spec new(actor) :: t
   def new(actor) do
     %Set {
-      actor: actor,
-      table: :ets.new(actor, [:set, :protected]),
-      vector: Vector.new()
+      actor:  actor,
+      table:  :ets.new(actor, [:set, :protected]),
+      vector: Vector.new(),
+      delta:  Delta.new(actor, 0)
     }
   end
 
@@ -31,11 +37,12 @@ defmodule Vial.Set do
   @spec add(t, key, value) :: t
   def add(set, key, value) do
     clock = Vector.clock(set.vector, set.actor)
+    addition = {key, value, {set.actor, clock}}
 
     if :ets.insert_new(set.table, {key, value, {set.actor, clock}}) do
-      # todo: store addition in delta
       %{set|
-        vector:  Vector.increment(set.vector, set.actor)
+        vector: Vector.increment(set.vector, set.actor),
+        delta:  Delta.record_addition(set.delta, addition)
       }
     else
       set
@@ -46,15 +53,20 @@ defmodule Vial.Set do
   Removes an element from the set.
   """
   @spec remove(t, key) :: t
-  def remove(set, key) do
+  def remove(%Set{actor: actor}=set, key) do
+    clock = Vector.clock(set.vector, actor)
+
     case :ets.lookup(set.table, key) do
       [] ->
         set
-      [_] ->
-        # todo: store removal in delta
+
+      [{^key, _, {^actor, clock_to_remove}}] ->
+
+        removal = {actor, clock_to_remove}
         :ets.delete(set.table, key)
         %{set|
-          vector: Vector.increment(set.vector, set.actor)
+          vector: Vector.increment(set.vector, set.actor),
+          delta:  Delta.record_removal(set.delta, clock, removal)
         }
     end
   end
