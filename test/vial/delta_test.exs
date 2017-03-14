@@ -14,7 +14,7 @@ defmodule Vial.DeltaTest do
 
   describe "record_addition" do
     test "it records additions" do
-      addition = {:foo, :bar, {:actor, 12}}
+      addition = {:key, :pid, :bar, {:actor, 12}}
       delta =
         Delta.new(:actor, 10)
         |> Delta.record_addition(addition)
@@ -40,17 +40,17 @@ defmodule Vial.DeltaTest do
     test "it only extracts elements that have not been removed" do
       set =
         Set.new(:foo)
-        |> Set.add(:key, :value)
-        |> Set.add(:key1, :value)
-        |> Set.add(:removed, :value1)
-        |> Set.remove(:removed)
+        |> Set.add(:key, :pid, :value)
+        |> Set.add(:key1, :pid1, :value)
+        |> Set.add(:removed, :removed_pid, :value1)
+        |> Set.remove(:removed, :removed_pid)
 
       delta = set
         |> Delta.extract()
 
       keys =
         delta.additions
-        |> Enum.map(fn {key, _, _} -> key end)
+        |> Enum.map(fn {key, _, _, _} -> key end)
         |> Enum.sort
 
       assert keys == [:key, :key1]
@@ -59,10 +59,10 @@ defmodule Vial.DeltaTest do
     test "it sets the clocks correctly" do
       set =
         Set.new(:foo)
-        |> Set.add(:key, :value)      # 0
-        |> Set.add(:key1, :value)     # 1
-        |> Set.add(:removed, :value1) # 2
-        |> Set.remove(:removed)       # 3
+        |> Set.add(:key, :pid, :value)       # 0
+        |> Set.add(:key1, :pid1, :value)     # 1
+        |> Set.add(:removed, :pid3, :value1) # 2
+        |> Set.remove(:removed, :pid3)       # 3
 
       delta = set |> Delta.extract()
 

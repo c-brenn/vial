@@ -44,7 +44,7 @@ defmodule Vial.Delta do
   Records the addition in the list of additions.
   """
   @spec record_addition(t, addition) :: t
-  def record_addition(%{end_clock: e}=delta, {_,_,{_,clock}} = addition)
+  def record_addition(%{end_clock: e}=delta, {_,_,_,{_,clock}} = addition)
     when e <= clock do
 
     %{delta|
@@ -72,7 +72,7 @@ defmodule Vial.Delta do
   """
   @spec extract(Set.t) :: t
   def extract(set) do
-    match_pattern = {:_, :_, {set.actor, :_}}
+    match_pattern = {:_, :_, :_, {set.actor, :_}}
 
     %Delta{
       actor:       set.actor,

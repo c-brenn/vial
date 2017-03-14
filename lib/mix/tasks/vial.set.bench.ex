@@ -20,17 +20,17 @@ defmodule Mix.Tasks.Vial.Set.Bench do
     {s1, s2} = time "Creating 2 #{size} element sets", fn ->
       s1 = Enum.reduce(1..size, Set.new(:s1), fn i, acc ->
 
-        Set.add(acc, {make_ref(), "topic#{:erlang.phash2(i, topic_size)}:user#{i}"}, %{name: i})
+        Set.add(acc, make_ref(), "topic#{:erlang.phash2(i, topic_size)}:user#{i}", %{name: i})
       end)
 
       s2 = Enum.reduce(1..size, Set.new(:s2), fn i, acc ->
-        Set.add(acc, {make_ref(), "topic#{i}:user#{i}"}, %{name: i})
+        Set.add(acc, make_ref(), "topic#{i}:user#{i}", %{name: i})
       end)
 
       {s1, s2}
     end
     user = make_ref()
-    s1 = Set.add(s1, {user, "topic100:user100"}, %{name: 100})
+    s1 = Set.add(s1, user, "topic100:user100", %{name: 100})
 
     delta = time "extracting #{size} element set", fn ->
       Delta.extract(s2)
@@ -67,11 +67,11 @@ defmodule Mix.Tasks.Vial.Set.Bench do
     s2 = time "Creating delta with #{delta_size} joins and leaves", fn ->
       additions
         |> Enum.reduce(s2, fn {addition, i}, acc ->
-        {key, _, _} = addition
+        {key, pid, _, _} = addition
 
         acc
-        |> Set.add({make_ref(), "delta#{i}:user#{i}"}, %{name: i})
-        |> Set.remove(key)
+        |> Set.add(make_ref(), "delta#{i}:user#{i}", %{name: i})
+        |> Set.remove(key, pid)
       end)
     end
 

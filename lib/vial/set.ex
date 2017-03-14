@@ -25,7 +25,7 @@ defmodule Vial.Set do
   def new(actor) do
     %Set {
       actor:  actor,
-      table:  :ets.new(actor, [:set, :protected]),
+      table:  :ets.new(actor, [:bag, :protected]),
       vector: Vector.new(),
       delta:  Delta.new(actor, 0)
     }
@@ -34,36 +34,37 @@ defmodule Vial.Set do
   @doc """
   Adds an element to the set.
   """
-  @spec add(t, key, value) :: t
-  def add(set, key, value) do
-    clock = Vector.clock(set.vector, set.actor)
-    addition = {key, value, {set.actor, clock}}
+  @spec add(t, key, pid, value) :: t
+  def add(set, key, pid, value) do
+    if member?(set, key, pid) do
+      set
+    else
+      clock = Vector.clock(set.vector, set.actor)
+      addition = {key, pid, value, {set.actor, clock}}
+      :ets.insert(set.table, addition)
 
-    if :ets.insert_new(set.table, {key, value, {set.actor, clock}}) do
       %{set|
         vector: Vector.increment(set.vector, set.actor),
         delta:  Delta.record_addition(set.delta, addition)
       }
-    else
-      set
     end
   end
 
   @doc """
   Removes an element from the set.
   """
-  @spec remove(t, key) :: t
-  def remove(%Set{actor: actor}=set, key) do
+  @spec remove(t, key, pid) :: t
+  def remove(%Set{actor: actor}=set, key, pid) do
     clock = Vector.clock(set.vector, actor)
 
-    case :ets.lookup(set.table, key) do
+    case :ets.match_object(set.table, {key, pid, :_, :_}) do
       [] ->
         set
 
-      [{^key, _, {^actor, clock_to_remove}}] ->
+      [{^key, ^pid, _, {^actor, clock_to_remove}} = object] ->
 
-        removal = {key, {actor, clock_to_remove}}
-        :ets.delete(set.table, key)
+        removal = {key, pid, {actor, clock_to_remove}}
+        :ets.delete_object(set.table, object)
         %{set|
           vector: Vector.increment(set.vector, set.actor),
           delta:  Delta.record_removal(set.delta, clock, removal)
@@ -74,24 +75,11 @@ defmodule Vial.Set do
   @doc """
   Checks if an element is in the set
   """
-  @spec member?(t, key) :: boolean
-  def member?(set, key) do
-    case :ets.lookup(set.table, key) do
+  @spec member?(t, key, pid) :: boolean
+  def member?(set, key, pid) do
+    case :ets.match(set.table, {key, pid, :_, :_}) do
       [] -> false
       [_] -> true
-    end
-  end
-
-  @doc """
-  Retrieves the value stored for the given element
-  """
-  @spec lookup(t, key) :: {:ok, value} | {:error, :no_such_element}
-  def lookup(set, key) do
-    case :ets.lookup(set.table, key) do
-      [] ->
-        {:error, :no_such_element}
-      [{_, value, _}] ->
-        {:ok, value}
     end
   end
 
@@ -111,8 +99,8 @@ defmodule Vial.Set do
 
   defp do_merge(set, delta) do
     :ets.insert(set.table, delta.additions)
-    for {key, dot} <- delta.removals do
-      :ets.match_delete(set.table, {key, :_, dot})
+    for {key, pid, dot} <- delta.removals do
+      :ets.match_delete(set.table, {key, pid, :_, dot})
     end
 
     %{set| vector: Vector.set(set.vector, delta.actor, delta.end_clock)}
