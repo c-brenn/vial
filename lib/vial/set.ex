@@ -8,6 +8,7 @@ defmodule Vial.Set do
   defstruct [:actor, :table, :vector, :delta]
 
   @type actor   :: term
+  @type dot     :: {actor, pos_integer}
   @type key     :: term
   @type value   :: term
 
@@ -95,6 +96,14 @@ defmodule Vial.Set do
     else
       set
     end
+  end
+
+  @doc """
+  Returns all elements with the given name
+  """
+  @spec list(t, key) :: [{key, pid, value, dot}]
+  def list(set, key) do
+    :ets.lookup(set.table, key)
   end
 
   defp do_merge(set, delta) do
