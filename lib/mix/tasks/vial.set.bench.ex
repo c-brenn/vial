@@ -20,17 +20,17 @@ defmodule Mix.Tasks.Vial.Set.Bench do
     {s1, s2} = time "Creating 2 #{size} element sets", fn ->
       s1 = Enum.reduce(1..size, Set.new(:s1), fn i, acc ->
 
-        Set.add(acc, make_ref(), "topic#{:erlang.phash2(i, topic_size)}:user#{i}", %{name: i})
+        Set.add(acc, "topic#{:erlang.phash2(i, topic_size)}", make_ref(), %{name: i})
       end)
 
       s2 = Enum.reduce(1..size, Set.new(:s2), fn i, acc ->
-        Set.add(acc, make_ref(), "topic#{i}:user#{i}", %{name: i})
+        Set.add(acc, "topic#{i}", make_ref(), %{name: i})
       end)
 
       {s1, s2}
     end
     user = make_ref()
-    s1 = Set.add(s1, user, "topic100:user100", %{name: 100})
+    s1 = Set.add(s1, "topic100", user, %{name: 100})
 
     delta = time "extracting #{size} element set", fn ->
       Delta.extract(s2)
@@ -44,9 +44,10 @@ defmodule Mix.Tasks.Vial.Set.Bench do
       Set.merge(s1, delta)
     end
 
-    # time "get_by_topic for 1000 members of #{size * 2} element set", fn ->
-    #   State.get_by_topic(s1, "topic10")
-    # end
+    s = time "get_by_topic for 1000 members of #{size * 2} element set", fn ->
+      Set.list(s1, "topic10")
+    end
+
 
     # [{{topic, pid, key}, _meta, _tag} | _] = time "get_by_pid/2 for #{size * 2} element set", fn ->
     #   State.get_by_pid(s1, user)
@@ -93,7 +94,7 @@ defmodule Mix.Tasks.Vial.Set.Bench do
     {micro, result} = :timer.tc(func)
     ms = Float.round(micro / 1000, 2)
     sec = Float.round(ms / 1000, 2)
-    IO.puts "   = #{ms}ms    #{sec}s"
+    IO.puts "   = #{ms}ms    #{sec}s    #{micro}us"
 
     result
   end
